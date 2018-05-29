@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URLDecoder;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -13,17 +11,29 @@ import java.util.ArrayList;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
-public class HtmlHttpHandler implements HttpHandler {
+public class IndexingHttpHandler implements HttpHandler {
 
-	private FileScanner scanner = new FileScanner();
+	private static final String CONTENT_TYPE = "Content-Type";
+	private static final String TEXT_HTML = "text/html";
+
+	private File mainDir;
+
+	public IndexingHttpHandler(File mainDir) {
+		this.mainDir = mainDir;
+	}
 
 	private void doHandle(HttpExchange ex) throws IOException {
 		var URI = ex.getRequestURI().toString();
 		URI = URLDecoder.decode(URI, "UTF-8");
-		var currentFile = scanner.getCurrentFile(URI);
+		var currentFile = new File(mainDir.getAbsolutePath() + File.separatorChar + URI);
+
+		if (!currentFile.exists()) {
+			sendNotFoundResponse(ex);
+			return;
+		}
 
 		if (!currentFile.isDirectory()) {
-			sendFile(currentFile, ex);
+			sendFileResponse(currentFile, ex);
 			return;
 		}
 
@@ -36,10 +46,9 @@ public class HtmlHttpHandler implements HttpHandler {
 				files.add(file);
 		}
 
-		var template = readTemplate("list.html");
-		var html = HtmlBuilder.build(template, currentFile.getName(), URI, dirs, files);
+		var html = HtmlBuilder.buildFileList(currentFile.getName(), URI, dirs, files);
 
-		ex.getResponseHeaders().add("Content-Type", "text/html");
+		ex.getResponseHeaders().add(CONTENT_TYPE, TEXT_HTML);
 		ex.sendResponseHeaders(200, html.length);
 
 		var os = ex.getResponseBody();
@@ -47,47 +56,36 @@ public class HtmlHttpHandler implements HttpHandler {
 		os.close();
 	}
 
-	public void sendFile(File file, HttpExchange ex) throws IOException {
+	private void sendFileResponse(File file, HttpExchange ex) throws IOException {
 		file = file.getCanonicalFile();
 
-		if (!file.isFile()) {
-			sendNotFoundResponse(ex);
-		} else {
-			sendFileResponse(file, ex);
-		}
-	}
-
-	private void sendFileResponse(File file, HttpExchange ex) throws IOException, FileNotFoundException {
 		var mime = Files.probeContentType(file.toPath());
 		mime = mime == null ? "text/plain" : mime;
 
-		ex.getResponseHeaders().set("Content-Type", mime);
+		ex.getResponseHeaders().set(CONTENT_TYPE, mime);
 		ex.sendResponseHeaders(200, 0);
 
-		OutputStream os = ex.getResponseBody();
-		FileInputStream fs = new FileInputStream(file);
-		final byte[] buffer = new byte[0x10000];
+		var fis = new FileInputStream(file);
+		var respBodyStream = ex.getResponseBody();
+		var buffer = new byte[0x10000];
+
 		int count = 0;
-		while ((count = fs.read(buffer)) >= 0) {
-			os.write(buffer, 0, count);
+		while ((count = fis.read(buffer)) >= 0) {
+			respBodyStream.write(buffer, 0, count);
 		}
-		fs.close();
-		os.close();
+		fis.close();
+		respBodyStream.close();
 	}
 
 	private void sendNotFoundResponse(HttpExchange ex) throws FileNotFoundException, IOException {
-		var response = readTemplate("notfound.html");
-		ex.getResponseHeaders().add("Content-Type", "text/html");
+		var response = HtmlBuilder.readNotFound();
+
+		ex.getResponseHeaders().add(CONTENT_TYPE, TEXT_HTML);
 		ex.sendResponseHeaders(404, response.length);
 
 		var os = ex.getResponseBody();
 		os.write(response);
 		os.close();
-	}
-
-	private byte[] readTemplate(String fileName) throws IOException {
-		InputStream is = getClass().getClassLoader().getResourceAsStream("com/vorheim/httpserver/" + fileName);
-		return is.readAllBytes();
 	}
 
 	@Override
