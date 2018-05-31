@@ -63,7 +63,7 @@ public class IndexingHttpHandler implements HttpHandler {
 		mime = mime == null ? "text/plain" : mime;
 
 		ex.getResponseHeaders().set(CONTENT_TYPE, mime);
-		ex.sendResponseHeaders(200, 0);
+		ex.sendResponseHeaders(200, file.length());
 
 		var fis = new FileInputStream(file);
 		var respBodyStream = ex.getResponseBody();
