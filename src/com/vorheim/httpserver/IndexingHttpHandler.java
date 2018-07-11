@@ -15,6 +15,7 @@ public class IndexingHttpHandler implements HttpHandler {
 
 	private static final String CONTENT_TYPE = "Content-Type";
 	private static final String TEXT_HTML = "text/html";
+	private static final String TEXT_PLAIN = "text/plain";
 
 	private File mainDir;
 
@@ -23,9 +24,8 @@ public class IndexingHttpHandler implements HttpHandler {
 	}
 
 	private void doHandle(HttpExchange ex) throws IOException {
-		var URI = ex.getRequestURI().toString();
-		URI = URLDecoder.decode(URI, "UTF-8");
-		var currentFile = new File(mainDir.getAbsolutePath() + File.separatorChar + URI);
+		var url = URLDecoder.decode(ex.getRequestURI().toString(), "UTF-8");
+		var currentFile = new File(mainDir.getAbsolutePath() + File.separatorChar + url);
 
 		if (!currentFile.exists()) {
 			sendNotFoundResponse(ex);
@@ -39,14 +39,13 @@ public class IndexingHttpHandler implements HttpHandler {
 
 		var dirs = new ArrayList<File>();
 		var files = new ArrayList<File>();
+
 		for (File file : currentFile.listFiles()) {
-			if (file.isDirectory())
-				dirs.add(file);
-			else
-				files.add(file);
+			var list = file.isDirectory() ? dirs : files;
+			list.add(file);
 		}
 
-		var html = HtmlBuilder.buildFileList(currentFile.getName(), URI, dirs, files);
+		var html = HtmlBuilder.buildFileList(currentFile.getName(), url, dirs, files);
 
 		ex.getResponseHeaders().add(CONTENT_TYPE, TEXT_HTML);
 		ex.sendResponseHeaders(200, html.length);
@@ -59,10 +58,7 @@ public class IndexingHttpHandler implements HttpHandler {
 	private void sendFileResponse(File file, HttpExchange ex) throws IOException {
 		file = file.getCanonicalFile();
 
-		var mime = Files.probeContentType(file.toPath());
-		mime = mime == null ? "text/plain" : mime;
-
-		ex.getResponseHeaders().set(CONTENT_TYPE, mime);
+		ex.getResponseHeaders().set(CONTENT_TYPE, getMime(file));
 		ex.sendResponseHeaders(200, file.length());
 
 		var fis = new FileInputStream(file);
@@ -99,4 +95,8 @@ public class IndexingHttpHandler implements HttpHandler {
 
 	}
 
+	private static String getMime(File file) throws IOException {
+		var mime = Files.probeContentType(file.toPath());
+		return mime != null ? mime : TEXT_PLAIN;
+	}
 }

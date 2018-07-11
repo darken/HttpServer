@@ -39,7 +39,7 @@ public class HtmlBuilder {
 	}
 
 	private static void appendList(StringBuilder sb, String relativePath, List<File> files, boolean areDirs) {
-		for (File file : files) {
+		files.stream().forEach(file -> {
 			var path = !URL_SEPARATOR.equals(relativePath) ? relativePath + file.getName() : file.getName();
 			String name;
 
@@ -51,7 +51,7 @@ public class HtmlBuilder {
 			}
 
 			sb.append(makeLink(name, path, areDirs));
-		}
+		});
 	}
 
 	private static String makeLink(String name, String path, boolean isDir) {
