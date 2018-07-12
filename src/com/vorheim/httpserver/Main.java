@@ -17,7 +17,7 @@ public class Main {
 	}
 
 	private void start(ArgumentsParser parser) throws IOException {
-		if (parser.gotErrors()) {
+		if (parser.hasErrors()) {
 			return;
 		}
 

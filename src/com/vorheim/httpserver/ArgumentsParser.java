@@ -21,7 +21,7 @@ public class ArgumentsParser {
 		}
 	}
 
-	public boolean gotErrors() {
+	public boolean hasErrors() {
 		return errMsg.isPresent();
 	}
 
