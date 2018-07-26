@@ -1,5 +1,5 @@
 # HttpServer
-Command-line http server made in Java 10.
+Command-line http server made with Java 10.
 
 ### Usage:
 ```
